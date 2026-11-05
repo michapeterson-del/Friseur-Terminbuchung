@@ -3,7 +3,7 @@
 Online-Terminbuchung für **einen** Friseursalon, im Apple-Designstil (nach den Human Interface Guidelines).
 
 - **Kunden** öffnen die Startseite, wählen Leistung, Tag und freie Uhrzeit und senden eine Terminanfrage. Über einen persönlichen Link sehen sie live, ob der Salon bestätigt hat, und können selbst stornieren.
-- **Der Friseur** meldet sich unter `/admin` an und stellt alles selbst ein:
+- **Der Friseur** meldet sich unter `/admin` mit seinem Passwort an und stellt alles selbst ein:
   - **Termine**: Anfragen bestätigen, ablehnen oder absagen, jeweils mit Nachricht an den Kunden
   - **Leistungen** mit Dauer (z. B. Färben = 1,5 Std.), Preis, Beschreibung, ein-/ausblendbar
   - **Öffnungszeiten** pro Wochentag, mit mehreren Zeiträumen für Pausen
@@ -21,7 +21,7 @@ npm start          # http://localhost:3000
 npm test           # automatische Tests
 ```
 
-Lokal gibt es einen Test-Login: `admin@salon.de` / `admin1234`.
+Lokal gibt es ein Test-Passwort für `/admin`: `admin1234`.
 
 ## Deployment mit Coolify
 
@@ -33,13 +33,12 @@ Lokal gibt es einen Test-Login: `admin@salon.de` / `admin1234`.
 
    | Variable | Pflicht | Bedeutung |
    |---|---|---|
-   | `ADMIN_EMAIL` | ja | E-Mail für den Friseur-Login |
-   | `ADMIN_PASSWORD` | ja | Passwort für den Friseur-Login (lang und zufällig) |
+   | `ADMIN_PASSWORD` | ja | Passwort für den Friseur-Login unter `/admin` (lang und zufällig) |
    | `SALON_NAME` | nein | Name beim allerersten Start, später unter Einstellungen änderbar |
    | `TZ_SALON` | nein | Zeitzone, Standard `Europe/Berlin` |
 
-   Die Zugangsdaten werden bei jedem Start übernommen. Passwort vergessen? Einfach in Coolify neu setzen und neu deployen.
-   Fehlen sie, ist der Login gesperrt (die Buchungsseite läuft trotzdem).
+   Das Passwort wird bei jedem Start übernommen. Vergessen? Einfach in Coolify neu setzen und neu deployen.
+   Fehlt es, ist der Login gesperrt (die Buchungsseite läuft trotzdem). Nach 5 falschen Versuchen ist der Login 5 Minuten gesperrt.
 6. **Deploy**.
 
 Healthcheck: `/api/health`. Hinter dem HTTPS-Proxy wird das Login-Cookie automatisch als `Secure` gesetzt.
@@ -54,7 +53,7 @@ lib/app.js         HTTP-Routen (Buchungsseite, Login, Friseur-Bereich)
 lib/slots.js       Berechnung freier Zeiten
 lib/store.js       JSON-Speicher, Passwort-Hashing (scrypt)
 lib/time.js        Datums- und Zeithilfen
-public/            Seiten, Skripte und styles.css mit den Design-Tokens
+public/            Seiten, Skripte, styles.css mit den Design-Tokens, Schrift Inter (lokal, SIL OFL)
 test/              Tests (node:test)
 ```
 

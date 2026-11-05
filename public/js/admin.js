@@ -17,20 +17,20 @@ function renderAuth() {
   document.getElementById('logout').hidden = true;
   document.getElementById('my-page').hidden = true;
   app.innerHTML = `
-    <div class="container narrow" style="padding-top:0">
-      <div class="stack">
-        <div class="stack-sm" style="text-align:center">
-          <h1>Anmelden</h1>
-          <p class="secondary">Verwalte Termine, Leistungen und Öffnungszeiten.</p>
+    <div class="login-wrap">
+      <form class="login-card" id="auth" novalidate>
+        <div class="lock-icon">${icons.lock}</div>
+        <div class="stack-sm">
+          <h1 class="title-1" style="font: var(--text-title-1)">Salon-Bereich</h1>
+          <p class="secondary">Gib dein Passwort ein, um Termine und Einstellungen zu verwalten.</p>
         </div>
-        <form class="card stack-sm" id="auth" novalidate>
-          <div class="field"><label for="email">E-Mail</label><input class="input" id="email" type="email" autocomplete="email" required></div>
-          <div class="field"><label for="password">Passwort</label><input class="input" id="password" type="password" autocomplete="current-password" required></div>
-          <div id="auth-error"></div>
-          <button class="btn btn-primary btn-block" type="submit">Anmelden</button>
-        </form>
-        <p class="footnote secondary" style="text-align:center"><a href="/">Zur Buchungsseite</a></p>
-      </div>
+        <div class="field">
+          <label for="password" class="visually-hidden">Passwort</label>
+          <input class="input" id="password" type="password" autocomplete="current-password" placeholder="Passwort" required autofocus>
+        </div>
+        <div id="auth-error"></div>
+        <button class="btn btn-primary btn-large btn-block" type="submit">Anmelden</button>
+      </form>
     </div>`;
 
   document.getElementById('auth').addEventListener('submit', async (e) => {
@@ -39,11 +39,12 @@ function renderAuth() {
     const btn = f.querySelector('button[type=submit]');
     btn.disabled = true;
     try {
-      state.salon = await api('/api/auth/login', { method: 'POST', body: { email: f.email.value, password: f.password.value } });
+      state.salon = await api('/api/auth/login', { method: 'POST', body: { password: f.password.value } });
       await startDashboard();
     } catch (ex) {
       document.getElementById('auth-error').innerHTML = errorBox(ex.message);
       btn.disabled = false;
+      f.password.select();
     }
   });
 }
@@ -74,6 +75,13 @@ async function loadBookings() {
   state.today = data.today;
 }
 
+function countConfirmed(extraDays) {
+  const end = new Date(`${state.today}T12:00:00`);
+  end.setDate(end.getDate() + extraDays);
+  const last = `${end.getFullYear()}-${String(end.getMonth() + 1).padStart(2, '0')}-${String(end.getDate()).padStart(2, '0')}`;
+  return state.bookings.filter((b) => b.status === 'confirmed' && b.date >= state.today && b.date <= last).length;
+}
+
 const pendingCount = () => state.bookings.filter((b) => b.status === 'pending' && b.date >= state.today).length;
 
 function renderDashboard() {
@@ -89,6 +97,11 @@ function renderDashboard() {
       <div class="stack-sm">
         <h1>${esc(state.salon.name)}</h1>
         <p class="secondary subhead">Buchungsseite für deine Kunden: <a href="/" target="_blank" rel="noopener" style="font-weight:600">${esc(location.host)}</a></p>
+      </div>
+      <div class="stats">
+        <div class="card compact stat"><span class="value">${n}</span><span class="label">Offene Anfragen</span></div>
+        <div class="card compact stat"><span class="value">${countConfirmed(0)}</span><span class="label">Termine heute</span></div>
+        <div class="card compact stat"><span class="value">${countConfirmed(6)}</span><span class="label">Nächste 7 Tage</span></div>
       </div>
       <div class="segmented" role="tablist" aria-label="Bereiche">
         ${tabs.map(([id, label]) => `<button role="tab" data-tab="${id}" aria-selected="${state.tab === id}">${label}${id === 'requests' && n ? ` <span class="badge" aria-label="${n} offene Anfragen">${n}</span>` : ''}</button>`).join('')}

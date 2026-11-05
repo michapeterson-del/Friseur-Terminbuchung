@@ -12,7 +12,7 @@ const { createApp, newSalon } = require('../lib/app');
 async function setup() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'friseur-'));
   const store = new Store(path.join(dir, 'db.json'));
-  store.data.salons.push(newSalon({ name: 'Haarwerk', email: 'chef@salon.de', password: 'geheim123' }));
+  store.data.salons.push(newSalon({ name: 'Haarwerk', password: 'geheim123' }));
   const server = http.createServer(createApp(store, { now: () => ({ date: '2026-11-05', minutes: 8 * 60 }) }));
   await new Promise((r) => server.listen(0, r));
   const base = `http://127.0.0.1:${server.address().port}`;
@@ -27,7 +27,7 @@ async function setup() {
     if (set) cookie = set.split(';')[0];
     return { status: res.status, data: await res.json() };
   };
-  const login = () => call('POST', '/api/auth/login', { email: 'chef@salon.de', password: 'geheim123' });
+  const login = () => call('POST', '/api/auth/login', { password: 'geheim123' });
   return { call, login, close: () => server.close(), store };
 }
 
@@ -51,7 +51,7 @@ test('Kompletter Ablauf: Leistung einstellen, Kunde bucht, Friseur bestätigt', 
   r = await call('GET', '/api/salon', null, { auth: false });
   assert.equal(r.status, 200);
   assert.equal(r.data.name, 'Haarwerk');
-  assert.equal(r.data.email, undefined, 'Login-E-Mail ist nicht öffentlich');
+  assert.equal(r.data.passwordHash, undefined);
 
   // Kunde sieht freie Zeiten am Freitag, 2026-11-06
   r = await call('GET', `/api/salon/slots?serviceId=${serviceId}&date=2026-11-06`, null, { auth: false });
@@ -89,7 +89,7 @@ test('Friseur-Bereich ist geschützt, Registrierung gibt es nicht, Eingaben werd
   r = await call('POST', '/api/auth/register', { name: 'X', email: 'x@b.de', password: 'geheim123' });
   assert.equal(r.status, 404, 'Fremde können keinen Salon anlegen');
 
-  r = await call('POST', '/api/auth/login', { email: 'chef@salon.de', password: 'falsch123' });
+  r = await call('POST', '/api/auth/login', { password: 'falsch123' });
   assert.equal(r.status, 401);
 
   await login();
@@ -106,10 +106,21 @@ test('Friseur-Bereich ist geschützt, Registrierung gibt es nicht, Eingaben werd
 test('Startseite ist die Buchungsseite', async (t) => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'friseur-'));
   const store = new Store(path.join(dir, 'db.json'));
-  store.data.salons.push(newSalon({ name: 'A', email: 'a@a.de', password: 'geheim123' }));
+  store.data.salons.push(newSalon({ name: 'A', password: 'geheim123' }));
   const server = http.createServer(createApp(store));
   await new Promise((r) => server.listen(0, r));
   t.after(() => server.close());
   const html = await (await fetch(`http://127.0.0.1:${server.address().port}/`)).text();
   assert.match(html, /js\/salon\.js/);
+});
+
+test('Login wird nach 5 Fehlversuchen gesperrt', async (t) => {
+  const { call, close } = await setup();
+  t.after(close);
+  for (let i = 0; i < 5; i += 1) {
+    const r = await call('POST', '/api/auth/login', { password: 'falsch' });
+    assert.equal(r.status, 401);
+  }
+  const r = await call('POST', '/api/auth/login', { password: 'geheim123' });
+  assert.equal(r.status, 429, 'Auch das richtige Passwort wird während der Sperre abgewiesen');
 });

@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Deine Buchung</title>
+  <link rel="preload" href="/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
@@ -13,7 +14,7 @@
     </div>
   </header>
 
-  <main class="container narrow" id="app"><p class="secondary">Wird geladen …</p></main>
+  <main class="container narrow" id="app" style="padding-top: var(--space-7)"><p class="secondary">Wird geladen …</p></main>
 
   <script type="module">
     import { api, esc, euro, duration, fmtDateLong, icons, statusPill, toast } from '/js/common.js';
@@ -52,19 +53,24 @@
             <p class="secondary">${sub}</p>
             <div>${statusPill(b.status)}</div>
           </div>
-          ${b.message ? `<div class="card compact stack-sm"><p class="eyebrow">Nachricht vom Salon</p><p>${esc(b.message)}</p></div>` : ''}
-          <div class="card">
-            <dl class="summary">
-              <dt>Salon</dt><dd>${esc(b.salon.name)}</dd>
-              <dt>Leistung</dt><dd>${esc(b.service.name)}</dd>
-              <dt>Datum</dt><dd>${fmtDateLong(b.date)}</dd>
-              <dt>Uhrzeit</dt><dd>${b.start} – ${b.end} Uhr (${duration(b.service.duration)})</dd>
-              ${b.service.price != null ? `<dt>Preis</dt><dd>${euro(b.service.price)}</dd>` : ''}
-              <dt>Name</dt><dd>${esc(b.customer.name)}</dd>
-              ${b.salon.address ? `<dt>Adresse</dt><dd>${esc(b.salon.address)}</dd>` : ''}
-              ${b.salon.phone ? `<dt>Telefon</dt><dd><a href="tel:${esc(b.salon.phone.replace(/[^\d+]/g, ''))}">${esc(b.salon.phone)}</a></dd>` : ''}
-            </dl>
+          <div class="card ticket">
+            <div class="ticket-top">
+              <p class="eyebrow">${esc(b.salon.name)}</p>
+              <div class="ticket-date">${fmtDateLong(b.date)}</div>
+              <div class="ticket-time">${b.start} – ${b.end} Uhr</div>
+            </div>
+            <div class="ticket-cut" aria-hidden="true"></div>
+            <div class="ticket-bottom">
+              <dl class="summary">
+                <dt>Leistung</dt><dd>${esc(b.service.name)} · ${duration(b.service.duration)}</dd>
+                ${b.service.price != null ? `<dt>Preis</dt><dd>${euro(b.service.price)}</dd>` : ''}
+                <dt>Name</dt><dd>${esc(b.customer.name)}</dd>
+                ${b.salon.address ? `<dt>Adresse</dt><dd>${esc(b.salon.address)}</dd>` : ''}
+                ${b.salon.phone ? `<dt>Telefon</dt><dd><a href="tel:${esc(b.salon.phone.replace(/[^\d+]/g, ''))}">${esc(b.salon.phone)}</a></dd>` : ''}
+              </dl>
+            </div>
           </div>
+          ${b.message ? `<div class="card compact stack-sm"><p class="eyebrow">Nachricht vom Salon</p><p>${esc(b.message)}</p></div>` : ''}
           <div class="stack-sm">
             ${b.status === 'declined' || b.status === 'cancelled' ? `<a class="btn btn-primary btn-block" href="/">Neuen Termin wählen</a>` : ''}
             ${canCancel ? '<button class="btn btn-block" id="cancel"><span class="dot" style="background:var(--color-red)" aria-hidden="true"></span>Termin stornieren</button>' : ''}

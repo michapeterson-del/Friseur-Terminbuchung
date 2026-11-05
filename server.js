@@ -9,16 +9,15 @@ const PORT = Number(process.env.PORT) || 3000;
 const DATA_FILE = process.env.DATA_FILE || path.join(__dirname, 'data', 'db.json');
 const PRODUCTION = process.env.NODE_ENV === 'production';
 
-// Zugang für den Friseur kommt aus den Umgebungsvariablen (in Coolify: Environment Variables).
-// Ohne Angabe gibt es nur lokal einen Test-Zugang; im Betrieb ist der Login dann gesperrt.
-const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || (PRODUCTION ? '' : 'admin@salon.de')).trim().toLowerCase();
+// Das Friseur-Passwort kommt aus der Umgebungsvariable ADMIN_PASSWORD (in Coolify: Environment Variables).
+// Ohne Angabe gibt es nur lokal ein Test-Passwort; im Betrieb ist der Login dann gesperrt.
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || (PRODUCTION ? '' : 'admin1234');
 
 const store = new Store(DATA_FILE);
 let salon = store.data.salons[0];
 
 if (!salon) {
-  salon = newSalon({ name: process.env.SALON_NAME || 'Mein Salon', email: ADMIN_EMAIL, password: ADMIN_PASSWORD || id(24) });
+  salon = newSalon({ name: process.env.SALON_NAME || 'Mein Salon', password: ADMIN_PASSWORD || id(24) });
   Object.assign(salon, {
     tagline: 'Schnitt, Farbe und Pflege',
     services: [
@@ -35,17 +34,17 @@ if (!salon) {
 
 // Bei jedem Start Zugangsdaten aus den Umgebungsvariablen übernehmen.
 // So lässt sich ein vergessenes Passwort einfach in Coolify neu setzen.
-if (ADMIN_EMAIL && ADMIN_PASSWORD) {
+if (ADMIN_PASSWORD) {
   const { salt, hash } = hashPassword(ADMIN_PASSWORD);
-  if (salon.email !== ADMIN_EMAIL) store.data.sessions = {};
-  Object.assign(salon, { email: ADMIN_EMAIL, salt, passwordHash: hash });
-  if (!PRODUCTION && !process.env.ADMIN_PASSWORD) console.log(`Test-Login: ${ADMIN_EMAIL} / ${ADMIN_PASSWORD}`);
+  delete salon.email;
+  Object.assign(salon, { salt, passwordHash: hash });
+  if (!PRODUCTION && !process.env.ADMIN_PASSWORD) console.log(`Test-Passwort für /admin: ${ADMIN_PASSWORD}`);
 } else {
   // Kein Zugang konfiguriert: altes Passwort (z. B. aus der Demo) ungültig machen.
   const { salt, hash } = hashPassword(id(24));
   Object.assign(salon, { salt, passwordHash: hash });
   store.data.sessions = {};
-  console.warn('ACHTUNG: ADMIN_EMAIL und ADMIN_PASSWORD fehlen – der Friseur-Login ist gesperrt.');
+  console.warn('ACHTUNG: ADMIN_PASSWORD fehlt – der Friseur-Login ist gesperrt.');
 }
 store.save();
 
