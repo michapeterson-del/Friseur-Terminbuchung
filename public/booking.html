@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Deine Buchung</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="nav">
+    <div class="nav-inner">
+      <a class="brand" href="/" id="brand">Termin&nbsp;Salon</a>
+    </div>
+  </header>
+
+  <main class="container narrow" id="app"><p class="secondary">Wird geladen …</p></main>
+
+  <script type="module">
+    import { api, esc, euro, duration, fmtDateLong, icons, statusPill, toast } from '/js/common.js';
+    document.getElementById('brand').insertAdjacentHTML('afterbegin', icons.scissors);
+    const token = location.pathname.split('/')[2];
+    const app = document.getElementById('app');
+
+    const TEXT = {
+      pending: ['Anfrage gesendet', 'Der Salon prüft deinen Wunschtermin. Diese Seite aktualisiert sich automatisch – speichere sie dir am besten als Lesezeichen.', icons.clock],
+      confirmed: ['Termin bestätigt', 'Wir freuen uns auf dich!', icons.check],
+      declined: ['Termin abgelehnt', 'Der Salon kann diesen Termin leider nicht anbieten. Wähle gern eine andere Uhrzeit.', icons.x],
+      cancelled: ['Termin storniert', 'Dieser Termin findet nicht statt.', icons.x],
+    };
+
+    let last;
+    async function load() {
+      try {
+        const b = await api(`/api/bookings/${token}`);
+        if (last && last !== b.status) toast(`Status: ${TEXT[b.status][0]}`);
+        last = b.status;
+        render(b);
+      } catch (e) {
+        app.innerHTML = `<div class="alert"><span class="dot"></span>${esc(e.message)}</div>`;
+      }
+    }
+
+    function render(b) {
+      const [title, sub, icon] = TEXT[b.status];
+      const canCancel = b.status === 'pending' || b.status === 'confirmed';
+      app.innerHTML = `
+        <div class="stack">
+          <div class="stack-sm" style="text-align:center">
+            <div class="big-icon ${b.status}">${icon}</div>
+            <h1>${title}</h1>
+            <p class="secondary">${sub}</p>
+            <div>${statusPill(b.status)}</div>
+          </div>
+          ${b.message ? `<div class="card compact stack-sm"><p class="eyebrow">Nachricht vom Salon</p><p>${esc(b.message)}</p></div>` : ''}
+          <div class="card">
+            <dl class="summary">
+              <dt>Salon</dt><dd>${esc(b.salon.name)}</dd>
+              <dt>Leistung</dt><dd>${esc(b.service.name)}</dd>
+              <dt>Datum</dt><dd>${fmtDateLong(b.date)}</dd>
+              <dt>Uhrzeit</dt><dd>${b.start} – ${b.end} Uhr (${duration(b.service.duration)})</dd>
+              ${b.service.price != null ? `<dt>Preis</dt><dd>${euro(b.service.price)}</dd>` : ''}
+              <dt>Name</dt><dd>${esc(b.customer.name)}</dd>
+              ${b.salon.address ? `<dt>Adresse</dt><dd>${esc(b.salon.address)}</dd>` : ''}
+              ${b.salon.phone ? `<dt>Telefon</dt><dd><a href="tel:${esc(b.salon.phone.replace(/[^\d+]/g, ''))}">${esc(b.salon.phone)}</a></dd>` : ''}
+            </dl>
+          </div>
+          <div class="stack-sm">
+            ${b.status === 'declined' || b.status === 'cancelled' ? `<a class="btn btn-primary btn-block" href="/s/${esc(b.salon.slug)}">Neuen Termin wählen</a>` : ''}
+            ${canCancel ? '<button class="btn btn-block" id="cancel"><span class="dot" style="background:var(--color-red)" aria-hidden="true"></span>Termin stornieren</button>' : ''}
+          </div>
+        </div>`;
+      document.getElementById('cancel')?.addEventListener('click', async (e) => {
+        if (!confirm('Möchtest du diesen Termin wirklich stornieren?')) return;
+        e.target.disabled = true;
+        try {
+          render(await api(`/api/bookings/${token}/cancel`, { method: 'POST' }));
+          last = 'cancelled';
+        } catch (ex) { toast(ex.message); e.target.disabled = false; }
+      });
+    }
+
+    load();
+    setInterval(() => { if (last === 'pending' && !document.hidden) load(); }, 15000);
+  </script>
+</body>
+</html>
