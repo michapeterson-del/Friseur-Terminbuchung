@@ -35,6 +35,26 @@ Beim ersten Start wird ein Demo-Salon angelegt:
 | `TZ_SALON` | `Europe/Berlin` | Zeitzone für „heute“ und die Vorlaufzeit |
 | `NO_DEMO` | – | `1` = keinen Demo-Salon anlegen |
 
+## Deployment mit Coolify
+
+Das Projekt enthält ein `Dockerfile`, Coolify baut es direkt aus GitHub.
+
+1. In Coolify: **+ New → Resource → Public/Private Repository (GitHub App)** → dieses Repository, Branch `main`.
+2. **Build Pack: `Dockerfile`** auswählen.
+3. **Ports Exposes: `3000`**.
+4. **Domain** eintragen, z. B. `https://termine.deine-domain.de` (Coolify holt das HTTPS-Zertifikat automatisch).
+5. **Persistent Storage → + Add → Volume**:
+   - Name: `friseur-data`
+   - Destination Path: `/app/data`
+
+   **Wichtig:** Ohne dieses Volume sind bei jedem Deploy alle Salons und Buchungen weg.
+6. **Environment Variables** (optional): `NO_DEMO=1`, wenn kein Demo-Salon angelegt werden soll, und `TZ_SALON`, falls nicht Europe/Berlin.
+7. **Deploy**.
+
+Ein Healthcheck ist im Image eingebaut (`/api/health`). Hinter dem HTTPS-Proxy von Coolify wird das Login-Cookie automatisch als `Secure` gesetzt.
+
+**Backup:** Alle Daten liegen in einer einzigen Datei, `/app/data/db.json` im Volume. Am einfachsten über **Persistent Storage** bzw. per `docker cp` sichern.
+
 ## Aufbau
 
 ```
