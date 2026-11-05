@@ -11,57 +11,27 @@ const state = { salon: null, bookings: [], today: null, tab: 'requests', filter:
 const errorBox = (msg) => `<div class="alert" role="alert"><span class="dot" aria-hidden="true"></span><span>${esc(msg)}</span></div>`;
 
 // ---------------------------------------------------------------------------
-// Anmeldung / Registrierung
+// Anmeldung
 // ---------------------------------------------------------------------------
-function renderAuth(mode = location.hash === '#register' ? 'register' : 'login') {
+function renderAuth() {
   document.getElementById('logout').hidden = true;
   document.getElementById('my-page').hidden = true;
-  const register = mode === 'register';
   app.innerHTML = `
     <div class="container narrow" style="padding-top:0">
       <div class="stack">
         <div class="stack-sm" style="text-align:center">
-          <h1>${register ? 'Salon anlegen' : 'Anmelden'}</h1>
-          <p class="secondary">${register ? 'Erstelle deine eigene Buchungsseite.' : 'Verwalte Termine, Leistungen und Öffnungszeiten.'}</p>
+          <h1>Anmelden</h1>
+          <p class="secondary">Verwalte Termine, Leistungen und Öffnungszeiten.</p>
         </div>
         <form class="card stack-sm" id="auth" novalidate>
-          ${register ? `
-            <div class="field"><label for="name">Name des Salons</label><input class="input" id="name" required placeholder="z. B. Haarwerk Müller"></div>
-            <div class="field">
-              <label for="slug">Web-Adresse deiner Buchungsseite</label>
-              <div class="input-prefix"><span>${esc(location.host)}/s/</span><input class="input" id="slug" required pattern="[a-z0-9-]+" placeholder="haarwerk-mueller" autocapitalize="off"></div>
-            </div>` : ''}
           <div class="field"><label for="email">E-Mail</label><input class="input" id="email" type="email" autocomplete="email" required></div>
-          <div class="field"><label for="password">Passwort</label><input class="input" id="password" type="password" autocomplete="${register ? 'new-password' : 'current-password'}" required minlength="8">
-            ${register ? '<span class="hint">Mindestens 8 Zeichen.</span>' : ''}</div>
+          <div class="field"><label for="password">Passwort</label><input class="input" id="password" type="password" autocomplete="current-password" required></div>
           <div id="auth-error"></div>
-          <button class="btn btn-primary btn-block" type="submit">${register ? 'Salon anlegen' : 'Anmelden'}</button>
+          <button class="btn btn-primary btn-block" type="submit">Anmelden</button>
         </form>
-        <p style="text-align:center" class="subhead">
-          ${register ? 'Schon registriert?' : 'Noch kein Konto?'}
-          <button class="link-btn" id="switch">${register ? 'Anmelden' : 'Salon anlegen'}</button>
-        </p>
-        ${register ? '' : '<p class="footnote secondary" style="text-align:center">Demo: demo@salon.de / demo1234</p>'}
+        <p class="footnote secondary" style="text-align:center"><a href="/">Zur Buchungsseite</a></p>
       </div>
     </div>`;
-
-  document.getElementById('switch').addEventListener('click', () => {
-    history.replaceState(null, '', register ? '#login' : '#register');
-    renderAuth(register ? 'login' : 'register');
-  });
-
-  if (register) {
-    const name = document.getElementById('name');
-    const slug = document.getElementById('slug');
-    let touched = false;
-    slug.addEventListener('input', () => { touched = true; });
-    name.addEventListener('input', () => {
-      if (touched) return;
-      slug.value = name.value.toLowerCase()
-        .replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss')
-        .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40);
-    });
-  }
 
   document.getElementById('auth').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -69,13 +39,8 @@ function renderAuth(mode = location.hash === '#register' ? 'register' : 'login')
     const btn = f.querySelector('button[type=submit]');
     btn.disabled = true;
     try {
-      const body = { email: f.email.value, password: f.password.value };
-      if (register) Object.assign(body, { name: f.name.value, slug: f.slug.value });
-      state.salon = await api(`/api/auth/${register ? 'register' : 'login'}`, { method: 'POST', body });
-      history.replaceState(null, '', '/admin');
-      if (register) state.tab = 'services';
+      state.salon = await api('/api/auth/login', { method: 'POST', body: { email: f.email.value, password: f.password.value } });
       await startDashboard();
-      if (register) toast('Salon angelegt – lege jetzt deine Leistungen an');
     } catch (ex) {
       document.getElementById('auth-error').innerHTML = errorBox(ex.message);
       btn.disabled = false;
@@ -90,14 +55,14 @@ async function startDashboard() {
   const s = state.salon;
   document.getElementById('nav-name').textContent = s.name;
   const myPage = document.getElementById('my-page');
-  myPage.href = `/s/${s.slug}`;
+  myPage.href = '/';
   myPage.hidden = false;
   const logout = document.getElementById('logout');
   logout.hidden = false;
   logout.onclick = async () => {
     await api('/api/auth/logout', { method: 'POST' });
     state.salon = null;
-    renderAuth('login');
+    renderAuth();
   };
   await loadBookings();
   renderDashboard();
@@ -123,7 +88,7 @@ function renderDashboard() {
     <div class="stack">
       <div class="stack-sm">
         <h1>${esc(state.salon.name)}</h1>
-        <p class="secondary subhead">Deine Buchungsseite: <a href="/s/${esc(state.salon.slug)}" target="_blank" rel="noopener" style="font-weight:600">${esc(location.host)}/s/${esc(state.salon.slug)}</a></p>
+        <p class="secondary subhead">Buchungsseite für deine Kunden: <a href="/" target="_blank" rel="noopener" style="font-weight:600">${esc(location.host)}</a></p>
       </div>
       <div class="segmented" role="tablist" aria-label="Bereiche">
         ${tabs.map(([id, label]) => `<button role="tab" data-tab="${id}" aria-selected="${state.tab === id}">${label}${id === 'requests' && n ? ` <span class="badge" aria-label="${n} offene Anfragen">${n}</span>` : ''}</button>`).join('')}

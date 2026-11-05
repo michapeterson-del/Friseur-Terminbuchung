@@ -2,22 +2,25 @@
 
 const http = require('node:http');
 const path = require('node:path');
-const { Store, id } = require('./lib/store');
+const { Store, id, hashPassword } = require('./lib/store');
 const { createApp, newSalon } = require('./lib/app');
 
 const PORT = Number(process.env.PORT) || 3000;
 const DATA_FILE = process.env.DATA_FILE || path.join(__dirname, 'data', 'db.json');
+const PRODUCTION = process.env.NODE_ENV === 'production';
+
+// Zugang für den Friseur kommt aus den Umgebungsvariablen (in Coolify: Environment Variables).
+// Ohne Angabe gibt es nur lokal einen Test-Zugang; im Betrieb ist der Login dann gesperrt.
+const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || (PRODUCTION ? '' : 'admin@salon.de')).trim().toLowerCase();
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || (PRODUCTION ? '' : 'admin1234');
 
 const store = new Store(DATA_FILE);
+let salon = store.data.salons[0];
 
-// Beim ersten Start einen Demo-Salon anlegen, damit man sofort etwas sieht.
-if (store.data.salons.length === 0 && process.env.NO_DEMO !== '1') {
-  const demo = newSalon({ name: 'Salon Schnittpunkt', slug: 'demo', email: 'demo@salon.de', password: 'demo1234' });
-  Object.assign(demo, {
-    tagline: 'Schnitt, Farbe und Pflege – mitten in der Stadt.',
-    address: 'Hauptstraße 12, 10115 Berlin',
-    phone: '030 1234567',
-    capacity: 2,
+if (!salon) {
+  salon = newSalon({ name: process.env.SALON_NAME || 'Mein Salon', email: ADMIN_EMAIL, password: ADMIN_PASSWORD || id(24) });
+  Object.assign(salon, {
+    tagline: 'Schnitt, Farbe und Pflege',
     services: [
       { name: 'Herrenhaarschnitt', duration: 30, price: 28, description: 'Waschen, Schneiden, Styling' },
       { name: 'Damenhaarschnitt', duration: 60, price: 49, description: 'Waschen, Schneiden, Föhnen' },
@@ -26,10 +29,25 @@ if (store.data.salons.length === 0 && process.env.NO_DEMO !== '1') {
       { name: 'Bartpflege', duration: 20, price: 15, description: 'Konturen und Trimmen' },
     ].map((s) => ({ id: id(), active: true, ...s })),
   });
-  store.data.salons.push(demo);
-  store.save();
-  console.log('Demo-Salon angelegt: /s/demo  (Login: demo@salon.de / demo1234)');
+  store.data.salons.push(salon);
+  console.log('Salon angelegt. Leistungen, Öffnungszeiten und Daten unter /admin anpassen.');
 }
+
+// Bei jedem Start Zugangsdaten aus den Umgebungsvariablen übernehmen.
+// So lässt sich ein vergessenes Passwort einfach in Coolify neu setzen.
+if (ADMIN_EMAIL && ADMIN_PASSWORD) {
+  const { salt, hash } = hashPassword(ADMIN_PASSWORD);
+  if (salon.email !== ADMIN_EMAIL) store.data.sessions = {};
+  Object.assign(salon, { email: ADMIN_EMAIL, salt, passwordHash: hash });
+  if (!PRODUCTION && !process.env.ADMIN_PASSWORD) console.log(`Test-Login: ${ADMIN_EMAIL} / ${ADMIN_PASSWORD}`);
+} else {
+  // Kein Zugang konfiguriert: altes Passwort (z. B. aus der Demo) ungültig machen.
+  const { salt, hash } = hashPassword(id(24));
+  Object.assign(salon, { salt, passwordHash: hash });
+  store.data.sessions = {};
+  console.warn('ACHTUNG: ADMIN_EMAIL und ADMIN_PASSWORD fehlen – der Friseur-Login ist gesperrt.');
+}
+store.save();
 
 http.createServer(createApp(store)).listen(PORT, () => {
   console.log(`Friseur-Terminbuchung läuft auf http://localhost:${PORT}`);

@@ -1,6 +1,5 @@
 import { api, esc, euro, duration, dow, dayNum, monthName, fmtDateLong, icons, toast, h } from './common.js';
 
-const slug = location.pathname.split('/')[2];
 const app = document.getElementById('app');
 document.getElementById('brand').insertAdjacentHTML('afterbegin', icons.scissors);
 
@@ -9,7 +8,7 @@ const WINDOW = 14;
 
 async function init() {
   try {
-    state.salon = await api(`/api/salons/${encodeURIComponent(slug)}`);
+    state.salon = await api('/api/salon');
   } catch (e) {
     app.innerHTML = `<div class="alert"><span class="dot"></span>${esc(e.message)}</div>`;
     return;
@@ -101,7 +100,7 @@ function renderServices() {
 async function loadDays(from) {
   const q = new URLSearchParams({ serviceId: state.service.id, days: WINDOW });
   if (from) q.set('from', from);
-  const data = await api(`/api/salons/${slug}/availability?${q}`);
+  const data = await api(`/api/salon/availability?${q}`);
   state.today = data.today;
   state.days = data.days;
   state.from = Object.keys(data.days)[0];
@@ -152,7 +151,7 @@ async function loadTimes() {
     wrap.innerHTML = '<div class="list"><p class="list-empty">In diesem Zeitraum ist leider nichts mehr frei. Schau dir die nächsten Tage an.</p></div>';
     return;
   }
-  const { slots } = await api(`/api/salons/${slug}/slots?serviceId=${state.service.id}&date=${state.date}`);
+  const { slots } = await api(`/api/salon/slots?serviceId=${state.service.id}&date=${state.date}`);
   wrap.innerHTML = `
     <h3>${fmtDateLong(state.date)}</h3>
     ${slots.length
@@ -184,7 +183,7 @@ async function submit(e) {
   err.innerHTML = '';
   btn.disabled = true;
   try {
-    const booking = await api(`/api/salons/${slug}/bookings`, {
+    const booking = await api(`/api/salon/bookings`, {
       method: 'POST',
       body: {
         serviceId: state.service.id,

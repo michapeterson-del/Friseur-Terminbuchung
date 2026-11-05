@@ -9,7 +9,7 @@
 <body>
   <header class="nav">
     <div class="nav-inner">
-      <a class="brand" href="/" id="brand">Termin&nbsp;Salon</a>
+      <a class="brand" href="/" id="brand"><span id="nav-name">Salon</span></a>
     </div>
   </header>
 
@@ -34,6 +34,7 @@
         const b = await api(`/api/bookings/${token}`);
         if (last && last !== b.status) toast(`Status: ${TEXT[b.status][0]}`);
         last = b.status;
+        document.getElementById('nav-name').textContent = b.salon.name;
         render(b);
       } catch (e) {
         app.innerHTML = `<div class="alert"><span class="dot"></span>${esc(e.message)}</div>`;
@@ -65,7 +66,7 @@
             </dl>
           </div>
           <div class="stack-sm">
-            ${b.status === 'declined' || b.status === 'cancelled' ? `<a class="btn btn-primary btn-block" href="/s/${esc(b.salon.slug)}">Neuen Termin wählen</a>` : ''}
+            ${b.status === 'declined' || b.status === 'cancelled' ? `<a class="btn btn-primary btn-block" href="/">Neuen Termin wählen</a>` : ''}
             ${canCancel ? '<button class="btn btn-block" id="cancel"><span class="dot" style="background:var(--color-red)" aria-hidden="true"></span>Termin stornieren</button>' : ''}
           </div>
         </div>`;

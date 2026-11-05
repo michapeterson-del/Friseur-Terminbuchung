@@ -3,57 +3,24 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Friseur-Terminbuchung</title>
-  <meta name="description" content="Online Termine beim Friseur buchen – und als Salon eigene Buchungsseite erstellen.">
+  <title>Termin buchen</title>
+  <meta name="description" content="Online einen Termin beim Friseur buchen.">
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
   <header class="nav">
     <div class="nav-inner">
-      <a class="brand" href="/" id="brand">Termin&nbsp;Salon</a>
-      <a class="btn btn-small" href="/admin">Für Friseure</a>
+      <a class="brand" href="/" id="brand"><span id="nav-name">Salon</span></a>
+      <a class="btn btn-small" id="call" hidden>Anrufen</a>
     </div>
   </header>
 
-  <main class="container">
-    <section class="hero">
-      <p class="eyebrow">Online-Terminbuchung</p>
-      <h1>Dein nächster Haarschnitt.<br>In wenigen Sekunden gebucht.</h1>
-      <p class="secondary title-3" style="font-weight:400">Leistung wählen, freie Uhrzeit antippen, fertig.<br>Dein Salon bestätigt den Termin.</p>
-    </section>
-
-    <section class="stack-sm" aria-labelledby="salons-title">
-      <h2 id="salons-title">Salons</h2>
-      <div class="grid" id="salons"><p class="secondary">Wird geladen …</p></div>
-    </section>
-
-    <section class="card stack-sm" style="margin-top: var(--space-7); text-align:center">
-      <h2>Du bist Friseur?</h2>
-      <p class="secondary">Erstelle in einer Minute deine eigene Buchungsseite. Leistungen, Dauer, Öffnungszeiten – alles stellst du selbst ein.</p>
-      <div><a class="btn btn-primary" href="/admin#register">Salon kostenlos anlegen</a></div>
-    </section>
+  <main class="container narrow stack" id="app">
+    <p class="secondary">Wird geladen …</p>
   </main>
 
-  <footer class="footer">Friseur-Terminbuchung</footer>
+  <footer class="footer"><a href="/admin" class="secondary">Salon-Login</a></footer>
 
-  <script type="module">
-    import { api, esc, icons } from '/js/common.js';
-    document.getElementById('brand').insertAdjacentHTML('afterbegin', icons.scissors);
-    const el = document.getElementById('salons');
-    try {
-      const salons = await api('/api/salons');
-      el.innerHTML = salons.length
-        ? salons.map((s) => `
-          <a class="card stack-sm" href="/s/${esc(s.slug)}">
-            <h3 class="title-3">${esc(s.name)}</h3>
-            ${s.tagline ? `<p class="secondary subhead">${esc(s.tagline)}</p>` : ''}
-            ${s.address ? `<p class="footnote secondary">${esc(s.address)}</p>` : ''}
-            <span class="row subhead" style="font-weight:600">Termin buchen ${icons.chevron.replace('<svg', '<svg width="16" height="16"')}</span>
-          </a>`).join('')
-        : '<p class="secondary">Noch keine Salons vorhanden.</p>';
-    } catch (e) {
-      el.innerHTML = `<div class="alert"><span class="dot"></span>${esc(e.message)}</div>`;
-    }
-  </script>
+  <script type="module" src="/js/salon.js"></script>
 </body>
 </html>
