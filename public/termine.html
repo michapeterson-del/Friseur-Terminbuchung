@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Meine Termine</title>
+  <link rel="preload" href="/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="nav">
+    <div class="nav-inner">
+      <a class="brand" href="/" id="brand"><span id="nav-name">Salon</span></a>
+      <a class="btn btn-small btn-primary" href="/">Termin buchen</a>
+    </div>
+  </header>
+
+  <main class="container narrow stack" style="padding-top: var(--space-7)">
+    <div class="stack-sm">
+      <h1>Meine Termine</h1>
+      <p class="secondary">Hier siehst du deine kommenden Termine und ihren Status.</p>
+    </div>
+
+    <section class="stack-sm" aria-labelledby="saved-title">
+      <h2 class="section-title" id="saved-title">Auf diesem Gerät</h2>
+      <div class="stack-sm" id="saved"><p class="secondary">Wird geladen …</p></div>
+    </section>
+
+    <section class="stack-sm" aria-labelledby="find-title">
+      <h2 class="section-title" id="find-title">Termin suchen</h2>
+      <form class="stack-sm" id="find" novalidate>
+        <div class="form-group">
+          <div class="form-row"><label for="f-name">Name</label><input id="f-name" autocomplete="name" placeholder="wie bei der Buchung" required></div>
+          <div class="form-row"><label for="f-contact">Telefon / E-Mail</label><input id="f-contact" autocomplete="tel" placeholder="wie bei der Buchung" required></div>
+        </div>
+        <p class="footnote secondary" style="padding: 0 var(--space-4)">Auf einem anderen Gerät gebucht? Gib den Namen und die Telefonnummer oder E-Mail an, die du bei der Buchung verwendet hast.</p>
+        <div id="find-error" role="alert"></div>
+        <button class="btn btn-primary btn-block" type="submit">Termine anzeigen</button>
+      </form>
+      <div class="stack-sm" id="found"></div>
+    </section>
+  </main>
+
+  <script type="module">
+    import { api, esc, icons, statusPill, duration, fmtDateShort } from '/js/common.js';
+    import { savedTokens, forgetToken, rememberToken } from '/js/mybookings.js';
+    document.getElementById('brand').insertAdjacentHTML('afterbegin', icons.scissors);
+    api('/api/salon').then((s) => { document.getElementById('nav-name').textContent = s.name; }).catch(() => {});
+
+    const today = new Date().toLocaleDateString('sv-SE'); // YYYY-MM-DD
+
+    const card = (b) => {
+      const d = new Date(`${b.date}T12:00:00`);
+      return `<a class="card compact appt-card" href="/buchung/${esc(b.token)}">
+        <span class="appt-date"><span class="m">${d.toLocaleDateString('de-DE', { month: 'short' }).replace('.', '')}</span><span class="d">${d.getDate()}</span></span>
+        <span class="grow">
+          <strong style="display:block">${esc(b.service.name)}</strong>
+          <span class="subhead secondary">${fmtDateShort(b.date)} · ${b.start} Uhr · ${duration(b.service.duration)}</span>
+        </span>
+        ${statusPill(b.status)}
+      </a>`;
+    };
+
+    async function loadSaved() {
+      const el = document.getElementById('saved');
+      const results = await Promise.all(savedTokens().map(async (t) => {
+        try { return await api(`/api/bookings/${t}`); } catch (e) { if (e.status === 404) forgetToken(t); return null; }
+      }));
+      const upcoming = results.filter((b) => b && b.date >= today).sort((a, b) => a.date.localeCompare(b.date) || a.start.localeCompare(b.start));
+      const past = results.filter((b) => b && b.date < today);
+      past.forEach((b) => forgetToken(b.token)); // vergangene Termine nicht ewig speichern
+      el.innerHTML = upcoming.length
+        ? upcoming.map(card).join('')
+        : '<div class="list"><p class="list-empty">Auf diesem Gerät sind keine kommenden Termine gespeichert.</p></div>';
+    }
+
+    document.getElementById('find').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const err = document.getElementById('find-error');
+      const out = document.getElementById('found');
+      const btn = e.target.querySelector('button');
+      err.innerHTML = '';
+      btn.disabled = true;
+      try {
+        const { bookings } = await api('/api/bookings/lookup', {
+          method: 'POST',
+          body: { name: document.getElementById('f-name').value, contact: document.getElementById('f-contact').value },
+        });
+        bookings.forEach((b) => rememberToken(b.token));
+        if (bookings.length) {
+          // Gefundene Termine erscheinen oben unter „Auf diesem Gerät“
+          out.innerHTML = `<div class="alert ok"><span class="dot" aria-hidden="true"></span><span>${bookings.length === 1 ? '1 Termin gefunden' : `${bookings.length} Termine gefunden`} und auf diesem Gerät gespeichert.</span></div>`;
+          await loadSaved();
+          document.getElementById('saved-title').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+        } else {
+          out.innerHTML = '<div class="list"><p class="list-empty">Keine kommenden Termine gefunden. Stimmen Name und Telefonnummer bzw. E-Mail genau mit der Buchung überein?</p></div>';
+        }
+      } catch (ex) {
+        err.innerHTML = `<div class="alert"><span class="dot" aria-hidden="true"></span><span>${esc(ex.message)}</span></div>`;
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    loadSaved();
+  </script>
+</body>
+</html>

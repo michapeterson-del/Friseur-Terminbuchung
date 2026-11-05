@@ -12,7 +12,10 @@
   <header class="nav">
     <div class="nav-inner">
       <a class="brand" href="/" id="brand"><span id="nav-name">Salon</span></a>
-      <a class="btn btn-small" id="call" hidden>Anrufen</a>
+      <div class="row" style="gap: var(--space-2)">
+        <a class="btn btn-small" id="call" hidden aria-label="Salon anrufen">Anrufen</a>
+        <a class="btn btn-small" href="/termine" id="my">Meine Termine<span class="badge" id="my-count" hidden></span></a>
+      </div>
     </div>
   </header>
 

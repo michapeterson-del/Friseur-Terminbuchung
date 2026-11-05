@@ -830,7 +830,7 @@ body.has-bar { padding-bottom: calc(6rem + env(safe-area-inset-bottom)); }
 .password-field .input { text-align: center; font-size: 1.25rem; letter-spacing: 0.1em; }
 
 /* Kennzahlen (Admin) */
-.stats { display: grid; gap: var(--space-3); grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr)); }
+.stats { display: grid; gap: var(--space-3); grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .stat { display: flex; flex-direction: column; gap: var(--space-1); }
 .stat .value { font: 700 2.25rem/1 var(--font-sans); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
 .stat .label { font: var(--text-subhead); color: var(--color-label-secondary); }
@@ -838,4 +838,135 @@ body.has-bar { padding-bottom: calc(6rem + env(safe-area-inset-bottom)); }
 @media (prefers-reduced-motion: reduce) {
   .mobile-bar { animation: fade-in var(--dur-ease) var(--ease-in-out) !important; }
   .service-card:active, a.chip:active { transform: none; }
+}
+
+/* =========================================================================
+   KALENDER (Friseur-Bereich)
+   ========================================================================= */
+:root {
+  /* Termin-Flächen: Systemfarbe stark aufgehellt, Text bleibt Label-Farbe (Kontrast) */
+  --event-confirmed-bg: color-mix(in srgb, var(--color-blue) 14%, var(--color-surface));
+  --event-pending-bg: color-mix(in srgb, var(--color-orange) 16%, var(--color-surface));
+  --event-block-bg: var(--color-fill);
+  --closed-bg: color-mix(in srgb, var(--color-gray) 10%, var(--color-surface));
+}
+
+.cal-layout { display: grid; gap: var(--space-4); grid-template-columns: minmax(0, 1fr); align-items: start; }
+@media (min-width: 60rem) {
+  .cal-layout { grid-template-columns: 23rem minmax(0, 1fr); }
+  .cal-month { position: sticky; top: calc(4.5rem + env(safe-area-inset-top)); }
+}
+.cal-month, .cal-day { display: flex; flex-direction: column; gap: var(--space-4); min-width: 0; }
+.cal-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap; }
+
+.cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: var(--space-1); }
+.cal-wd { text-align: center; font: var(--text-caption-1); font-weight: 600; color: var(--color-label-secondary); padding-bottom: var(--space-1); }
+.cal-cell {
+  position: relative;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  min-height: 3.75rem; min-width: 0;
+  padding: var(--space-1) 2px var(--space-2);
+  border: 0; border-radius: var(--radius-control);
+  background: transparent;
+  cursor: pointer;
+  transition: background var(--dur-ease) var(--ease-default);
+}
+.cal-cell:hover { background: var(--color-fill); }
+.cal-cell:active { transform: scale(0.95); }
+.cal-num {
+  display: grid; place-items: center;
+  width: 1.875rem; height: 1.875rem; border-radius: 50%;
+  font: var(--text-callout); font-weight: 600; font-variant-numeric: tabular-nums;
+}
+.cal-cell.out .cal-num, .cal-cell.closed .cal-num { color: var(--color-label-secondary); font-weight: 400; }
+.cal-cell.today .cal-num { color: var(--color-red); font-weight: 700; }
+.cal-cell.selected .cal-num { background: var(--color-label); color: var(--color-surface); }
+.cal-cell.today.selected .cal-num { background: var(--color-red); color: rgb(255 255 255); }
+.cal-cell.past { opacity: 0.6; }
+.cal-info { display: flex; gap: 2px; align-items: center; justify-content: center; min-height: 1rem; flex-wrap: wrap; }
+.cal-count, .cal-pending, .cal-full {
+  display: inline-grid; place-items: center;
+  min-width: 1rem; height: 1rem; padding: 0 3px;
+  border-radius: var(--radius-capsule);
+  font: 700 0.6875rem/1 var(--font-sans); /* 11 pt = Minimum */
+}
+.cal-count { background: var(--event-confirmed-bg); color: var(--color-label); }
+.cal-pending { background: var(--color-orange); color: rgb(0 0 0); }
+.cal-full { background: var(--color-label); color: var(--color-surface); padding: 0 4px; }
+.cal-load { position: absolute; left: 22%; right: 22%; bottom: 4px; height: 3px; border-radius: 2px; background: var(--color-fill); overflow: hidden; }
+.cal-load > span { display: block; height: 100%; background: var(--color-accent); border-radius: 2px; }
+.cal-load.inline { position: relative; display: inline-block; width: 1.5rem; left: auto; right: auto; bottom: auto; vertical-align: middle; }
+.cal-legend { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); align-items: center; }
+.cal-legend > span { display: inline-flex; align-items: center; gap: var(--space-1); }
+
+/* Zeitleiste */
+.timeline {
+  position: relative;
+  margin-left: 3.25rem;
+  background: var(--closed-bg);
+  border-radius: var(--radius-control);
+  cursor: copy;
+}
+.tl-open { position: absolute; left: 0; right: 0; background: var(--color-surface); }
+.tl-hour { position: absolute; left: 0; right: 0; border-top: 1px solid var(--color-separator); pointer-events: none; }
+.tl-hour span {
+  position: absolute; left: -3.25rem; top: -0.55rem; width: 2.75rem; text-align: right;
+  font: var(--text-caption-1); color: var(--color-label-secondary); font-variant-numeric: tabular-nums;
+}
+.tl-now { position: absolute; left: -0.375rem; right: 0; height: 2px; background: var(--color-red); z-index: 3; pointer-events: none; }
+.tl-now::before { content: ""; position: absolute; left: 0; top: -4px; width: 10px; height: 10px; border-radius: 50%; background: var(--color-red); }
+.tl-events { position: absolute; inset: 0; }
+.tl-event {
+  position: absolute;
+  display: flex; flex-direction: column; align-items: flex-start; gap: 1px;
+  min-height: 1.5rem;
+  padding: var(--space-1) var(--space-2) var(--space-1) calc(var(--space-2) + 3px);
+  overflow: hidden;
+  text-align: left;
+  border: 0;
+  border-radius: 0.5rem;
+  background: var(--event-confirmed-bg);
+  box-shadow: inset 3px 0 0 var(--color-accent);
+  cursor: pointer;
+  z-index: 2;
+  transition: transform var(--dur-ease) var(--ease-default), box-shadow var(--dur-ease) var(--ease-default);
+}
+.tl-event:hover { box-shadow: inset 3px 0 0 var(--color-accent), var(--shadow-float); z-index: 4; }
+.tl-event:active { transform: scale(0.98); }
+.tl-event.pending { background: var(--event-pending-bg); box-shadow: inset 3px 0 0 var(--color-orange); outline: 1.5px dashed var(--color-orange); outline-offset: -1.5px; }
+.tl-event.block {
+  background: repeating-linear-gradient(135deg, var(--event-block-bg) 0 8px, var(--color-surface) 8px 16px);
+  box-shadow: inset 3px 0 0 var(--color-gray);
+}
+.tl-event.short { flex-direction: row; align-items: center; gap: var(--space-2); }
+.tl-time { font: var(--text-caption-1); font-weight: 600; font-variant-numeric: tabular-nums; color: var(--color-label-secondary); white-space: nowrap; }
+.tl-title { font: var(--text-footnote); font-weight: 700; color: var(--color-label); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.tl-sub { font: var(--text-caption-1); color: var(--color-label-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.tl-tag { display: inline-block; padding: 0 4px; border-radius: 4px; background: var(--color-orange); color: rgb(0 0 0); font: 700 0.6875rem/1.3 var(--font-sans); vertical-align: 1px; }
+
+/* Meine Termine (Kunden) */
+.appt-card, a.card.appt-card { display: flex; gap: var(--space-4); align-items: center; text-decoration: none; color: inherit; }
+.appt-card .grow { flex: 1; min-width: 0; }
+.appt-date {
+  flex: none; width: 3.75rem; text-align: center;
+  border-radius: var(--radius-control); overflow: hidden;
+  background: var(--color-bg); box-shadow: inset 0 0 0 1px var(--card-border);
+}
+.appt-date .m { display: block; background: var(--color-red); color: rgb(255 255 255); font: var(--text-caption-1); font-weight: 700; text-transform: uppercase; padding: 2px 0; }
+.appt-date .d { display: block; font: 700 1.5rem/1.6 var(--font-sans); }
+
+@media (prefers-reduced-motion: reduce) {
+  .cal-cell:active, .tl-event:active { transform: none; }
+}
+
+/* Navigation auf schmalen Geräten: Name kürzen, „Anrufen“ steckt dann im Hero */
+.brand { min-width: 0; }
+.brand span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 30rem) { #call { display: none !important; } }
+.nav-inner > .row { flex-wrap: nowrap; flex: none; }
+@media (max-width: 34rem) {
+  .stats { gap: var(--space-2); }
+  .stats .card { --pad: var(--space-3); }
+  .stat .value { font-size: 1.75rem; }
+  .stat .label { font: var(--text-caption-1); }
 }

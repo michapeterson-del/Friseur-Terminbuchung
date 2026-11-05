@@ -2,9 +2,11 @@
 
 Online-Terminbuchung für **einen** Friseursalon, im Apple-Designstil (nach den Human Interface Guidelines).
 
-- **Kunden** öffnen die Startseite, wählen Leistung, Tag und freie Uhrzeit und senden eine Terminanfrage. Über einen persönlichen Link sehen sie live, ob der Salon bestätigt hat, und können selbst stornieren.
+- **Kunden** öffnen die Startseite, wählen Leistung, Tag und freie Uhrzeit und senden eine Terminanfrage. Über einen persönlichen Link sehen sie live, ob der Salon bestätigt hat, können den Termin in ihren Kalender übernehmen (.ics) oder selbst stornieren.
+- **Meine Termine** (`/termine`): zeigt die auf dem Gerät gebuchten Termine; auf anderen Geräten über Name + Telefon/E-Mail auffindbar.
 - **Der Friseur** meldet sich unter `/admin` mit seinem Passwort an und stellt alles selbst ein:
-  - **Termine**: Anfragen bestätigen, ablehnen oder absagen, jeweils mit Nachricht an den Kunden
+  - **Kalender**: Monatsübersicht mit Anzahl der Termine, offenen Anfragen und Auslastung pro Tag; Tagesansicht als Zeitleiste wie im Apple Kalender. Termine antippen zum Bestätigen/Ablehnen, in freie Zeit tippen zum Eintragen (z. B. telefonische Buchungen), Zeiten blocken (Pause, Arzttermin)
+  - **Anfragen**: Liste aller offenen Anfragen, bestätigen, ablehnen oder absagen, jeweils mit Nachricht an den Kunden
   - **Leistungen** mit Dauer (z. B. Färben = 1,5 Std.), Preis, Beschreibung, ein-/ausblendbar
   - **Öffnungszeiten** pro Wochentag, mit mehreren Zeiträumen für Pausen
   - **Urlaub & Schließtage**

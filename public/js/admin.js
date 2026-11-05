@@ -1,3 +1,4 @@
+import { renderCalendar } from './calendar.js';
 import { api, esc, euro, duration, fmtDateLong, fmtDateShort, icons, statusPill, toast, openSheet } from './common.js';
 
 const app = document.getElementById('app');
@@ -6,7 +7,7 @@ document.getElementById('brand').insertAdjacentHTML('afterbegin', icons.scissors
 const DAYS = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag'];
 const DAY_INDEX = [1, 2, 3, 4, 5, 6, 0]; // Anzeige ab Montag, Speicherung 0 = Sonntag
 
-const state = { salon: null, bookings: [], today: null, tab: 'requests', filter: 'upcoming' };
+const state = { salon: null, bookings: [], today: null, tab: 'calendar', filter: 'upcoming' };
 
 const errorBox = (msg) => `<div class="alert" role="alert"><span class="dot" aria-hidden="true"></span><span>${esc(msg)}</span></div>`;
 
@@ -71,7 +72,7 @@ async function startDashboard() {
 
 async function loadBookings() {
   const data = await api('/api/admin/bookings');
-  state.bookings = data.bookings;
+  state.bookings = data.bookings.filter((b) => b.kind !== 'block'); // Blocker nur im Kalender
   state.today = data.today;
 }
 
@@ -86,7 +87,8 @@ const pendingCount = () => state.bookings.filter((b) => b.status === 'pending' &
 
 function renderDashboard() {
   const tabs = [
-    ['requests', 'Termine'],
+    ['calendar', 'Kalender'],
+    ['requests', 'Anfragen'],
     ['services', 'Leistungen'],
     ['hours', 'Öffnungszeiten'],
     ['settings', 'Einstellungen'],
@@ -112,7 +114,34 @@ function renderDashboard() {
     state.tab = b.dataset.tab;
     renderDashboard();
   }));
-  ({ requests: renderRequests, services: renderServices, hours: renderHours, settings: renderSettings })[state.tab]();
+  ({ calendar: renderCalendarTab, requests: renderRequests, services: renderServices, hours: renderHours, settings: renderSettings })[state.tab]();
+}
+
+function renderCalendarTab() {
+  renderCalendar(document.getElementById('panel'), {
+    salon: state.salon,
+    today: state.today,
+    onStatus: (id, status) => changeStatus(id, status),
+    onChanged: async () => {
+      await loadBookings();
+      updateStats();
+    },
+  });
+}
+
+// Kennzahlen und Badge aktualisieren, ohne den Kalender neu aufzubauen
+function updateStats() {
+  const values = document.querySelectorAll('.stats .value');
+  if (values.length === 3) {
+    values[0].textContent = pendingCount();
+    values[1].textContent = countConfirmed(0);
+    values[2].textContent = countConfirmed(6);
+  }
+  const tab = document.querySelector('[data-tab=requests]');
+  if (tab) {
+    const n = pendingCount();
+    tab.innerHTML = `Anfragen${n ? ` <span class="badge" aria-label="${n} offene Anfragen">${n}</span>` : ''}`;
+  }
 }
 
 // ---------- Termine ----------
@@ -514,14 +543,15 @@ function renderSettings() {
   }
 })();
 
-// Neue Anfragen regelmäßig nachladen (nur im Tab „Termine“, damit keine Eingaben verloren gehen).
+// Neue Anfragen regelmäßig nachladen (nur Kalender/Anfragen, nicht während ein Dialog offen ist).
 setInterval(async () => {
-  if (!state.salon || document.hidden || document.querySelector('.sheet') || state.tab !== 'requests') return;
-  const before = pendingCount();
+  if (!state.salon || document.hidden || document.querySelector('.sheet') || !['requests', 'calendar'].includes(state.tab)) return;
+  const before = state.bookings.map((b) => b.id + b.status).join();
+  const pendingBefore = pendingCount();
   try {
     await loadBookings();
-    if (pendingCount() > before) toast('Neue Terminanfrage');
-    renderDashboard();
+    if (pendingCount() > pendingBefore) toast('Neue Terminanfrage');
+    if (state.bookings.map((b) => b.id + b.status).join() !== before) renderDashboard();
   } catch { /* still */ }
 }, 30000);
 

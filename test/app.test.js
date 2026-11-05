@@ -124,3 +124,56 @@ test('Login wird nach 5 Fehlversuchen gesperrt', async (t) => {
   const r = await call('POST', '/api/auth/login', { password: 'geheim123' });
   assert.equal(r.status, 429, 'Auch das richtige Passwort wird während der Sperre abgewiesen');
 });
+
+test('Kalender: Friseur trägt Termin und Blocker ein, Tag wird als ausgebucht erkannt', async (t) => {
+  const { call, login, close } = await setup();
+  t.after(close);
+  await login();
+  let r = await call('POST', '/api/admin/services', { name: 'Schnitt', duration: 60 });
+  const serviceId = r.data.services[0].id;
+  await call('PUT', '/api/admin/hours', { hours: { 5: [{ start: '09:00', end: '11:00' }] } });
+
+  // Termin von Hand (z. B. telefonisch) – ist sofort bestätigt
+  r = await call('POST', '/api/admin/bookings', { date: '2026-11-06', time: '09:00', serviceId, name: 'Herr Meier', phone: '0170 1' });
+  assert.equal(r.status, 201);
+  assert.equal(r.data.status, 'confirmed');
+
+  // Blocker für den Rest des Vormittags
+  r = await call('POST', '/api/admin/bookings', { kind: 'block', date: '2026-11-06', time: '10:00', duration: 60, title: 'Arzttermin' });
+  assert.equal(r.status, 201);
+  const blockId = r.data.id;
+
+  // Überschneidung wird gemeldet, mit force trotzdem möglich
+  r = await call('POST', '/api/admin/bookings', { date: '2026-11-06', time: '09:30', serviceId, name: 'Frau Kunz' });
+  assert.equal(r.status, 409);
+
+  // Tag ist voll – Kunden sehen keine Zeiten mehr
+  r = await call('GET', '/api/admin/calendar?from=2026-11-06&days=1');
+  assert.deepEqual(r.data.days['2026-11-06'], { open: true, closed: false, confirmed: 1, pending: 0, load: 1, full: true });
+  r = await call('GET', `/api/salon/slots?serviceId=${serviceId}&date=2026-11-06`, null, { auth: false });
+  assert.deepEqual(r.data.slots, []);
+
+  // Tagesansicht enthält beide Einträge
+  r = await call('GET', '/api/admin/day?date=2026-11-06');
+  assert.deepEqual(r.data.bookings.map((b) => b.kind), ['appointment', 'block']);
+
+  // Blocker löschen gibt die Zeit wieder frei
+  await call('DELETE', `/api/admin/bookings/${blockId}`);
+  r = await call('GET', `/api/salon/slots?serviceId=${serviceId}&date=2026-11-06`, null, { auth: false });
+  assert.deepEqual(r.data.slots, ['10:00']);
+});
+
+test('Kunde findet seine Termine nur mit passendem Namen und Kontakt', async (t) => {
+  const { call, login, close } = await setup();
+  t.after(close);
+  await login();
+  const r = await call('POST', '/api/admin/services', { name: 'Schnitt', duration: 30 });
+  const serviceId = r.data.services[0].id;
+  await call('PUT', '/api/admin/hours', { hours: { 5: [{ start: '09:00', end: '12:00' }] } });
+  await call('POST', '/api/salon/bookings', { serviceId, date: '2026-11-06', time: '09:00', name: 'Lena Muster', phone: '0151 234 567' }, { auth: false });
+
+  const find = (name, contact) => call('POST', '/api/bookings/lookup', { name, contact }, { auth: false });
+  assert.equal((await find('lena muster', '+49 151 234567')).data.bookings.length, 1, 'Schreibweise der Nummer egal');
+  assert.equal((await find('Lena Muster', '0151 999 999')).data.bookings.length, 0, 'falsche Nummer');
+  assert.equal((await find('Max Muster', '0151 234 567')).data.bookings.length, 0, 'falscher Name');
+});

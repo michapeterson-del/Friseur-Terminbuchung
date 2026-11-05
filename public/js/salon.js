@@ -1,6 +1,7 @@
 import {
   api, esc, euro, duration, dow, dayNum, monthName, fmtDateLong, fmtDateShort, icons, toast, h, serviceIcon, WEEKDAYS,
 } from './common.js';
+import { savedTokens, rememberToken } from './mybookings.js';
 
 const app = document.getElementById('app');
 document.getElementById('brand').insertAdjacentHTML('afterbegin', icons.scissors);
@@ -50,6 +51,14 @@ async function init() {
     const call = document.getElementById('call');
     call.href = tel;
     call.hidden = false;
+  }
+  const saved = savedTokens().length;
+  if (saved) {
+    const badge = document.getElementById('my-count');
+    badge.textContent = saved;
+    badge.hidden = false;
+    badge.setAttribute('aria-label', `${saved} gespeichert`);
+    badge.style.marginLeft = 'var(--space-1)';
   }
   const status = openStatus(s);
   const maps = s.address ? `https://maps.apple.com/?q=${encodeURIComponent(s.address)}` : '';
@@ -321,6 +330,7 @@ async function submit(e) {
         name: f.name.value, phone: f.phone.value, email: f.email.value, note: f.note.value,
       },
     });
+    rememberToken(booking.token);
     location.href = `/buchung/${booking.token}`;
   } catch (ex) {
     err.replaceChildren(h(`<div class="alert"><span class="dot" aria-hidden="true"></span><span>${esc(ex.message)}</span></div>`));
